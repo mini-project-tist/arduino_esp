@@ -2,6 +2,10 @@
 #include <time.h>
 #include <Firebase_ESP_Client.h>
 
+#define RXp2 16  // ESP32 GPIO16 -> Connect to Mega TX1 (18)
+#define TXp2 17  // ESP32 GPIO17 -> Connect to Mega RX1 (19)
+HardwareSerial mySerial(2);  // Use Serial2
+
 // NTP server details
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 19800;
@@ -27,22 +31,14 @@ const char* password = "12345678";
 #define USER_EMAIL "miniprojecttist@gmail.com"
 #define USER_PASSWORD "hello@234"
 
+
 // Define Firebase Data object
 FirebaseData fbdo;
-
 FirebaseAuth auth;
 FirebaseConfig config;
 
-
-#define RXp2 16  // ESP32 GPIO16 -> Connect to Mega TX1 (18)
-#define TXp2 17  // ESP32 GPIO17 -> Connect to Mega RX1 (19)
-
-HardwareSerial mySerial(2);  // Use Serial2
-
 void setup() {
-  Serial.begin(9600);   // Serial Monitor
-  mySerial.begin(9600, SERIAL_8N1, RXp2, TXp2); // Serial2 with Mega
-
+  Serial.begin(115200);   // Serial Monitor
 
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
@@ -82,6 +78,8 @@ void setup() {
 
   // Initialize and configure time
   configTime(gmtOffset_sec, 0, ntpServer);
+
+  mySerial.begin(9600, SERIAL_8N1, RXp2, TXp2); // Serial2 with Mega
 }
 
 void getTimeAndDate(){
@@ -109,14 +107,16 @@ void loop() {
   sprintf(timeStr, "%02d:%02d:%02d", hour, minute, second);
   sprintf(dateStr, "%02d-%02d-%04d", day, month, year);
 
-  sprintf(loc, "/s3/%s_%s", timeStr, dateStr);
+  sprintf(loc, "/s2/%s_%s", timeStr, dateStr);
 
   if (mySerial.available()) {
     data = mySerial.readStringUntil('\n');  // Read incoming data
-    
-    Serial.println(data);           // Print to Serial Monitor
+
+    data.trim();
+    Firebase.RTDB.setString(&fbdo, F(loc), data);
   }
-  Firebase.RTDB.setString(&fbdo, F(loc), buffer);
-  Serial.println("hello")
-  
+
+  if (Firebase.RTDB.getString(&fbdo, "/status/s2")) {
+    mySerial.println(fbdo.to<String>());
+  }
 }
