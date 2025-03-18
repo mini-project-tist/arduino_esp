@@ -1,0 +1,88 @@
+#include <ZMPT101B.h>
+#define SENSITIVITY 500.0f
+
+#define relay1 45
+// #define relay2 40
+
+#define CURRENT_SENSOR1 A2  // ACS712 connected to A1
+ZMPT101B voltageSensor1(A3, 60.0);
+
+// #define CURRENT_SENSOR2 A6  // ACS712 connected to A1
+// ZMPT101B voltageSensor2(A7, 60.0);
+
+unsigned long previousMillis = 0;
+const long interval = 1000;  // 5 minutes (300,000 ms)
+
+String st, pw;
+
+int stringToDigital(String str) {
+    return (str == "HIGH") ? HIGH : LOW;
+}
+
+void setup() {
+  Serial.begin(115200);    // Serial Monitor
+  Serial1.begin(9600);     // Serial Communication with ESP32 (TX1/RX1)
+  voltageSensor1.setSensitivity(SENSITIVITY);
+  // voltageSensor2.setSensitivity(SENSITIVITY);
+
+  pinMode(relay1, OUTPUT);
+  digitalWrite(relay1, LOW);
+
+  // pinMode(relay2, OUTPUT);
+  // digitalWrite(relay2, LOW);
+}
+
+void loop() {
+  unsigned long currentMillis = millis();
+
+  if(Serial1.available()){
+    st = Serial1.readStringUntil('\n');  
+    st.trim();  // Clean unwanted spaces
+
+    digitalWrite(relay1, stringToDigital(st.substring(3)));
+
+    Serial.println(st);
+    
+    // if (st[1]=='1') {
+    //   digitalWrite(relay1, stringToDigital(st.substring(3)));
+    //   delay(300);
+    // }
+    // else if(st[1]=='2'){
+    //   digitalWrite(relay2, stringToDigital(st.substring(3)));
+    //   delay(300);
+    // }
+
+    
+  }
+  
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;  // Update time
+
+    int rawValue1 = analogRead(CURRENT_SENSOR1);
+    double voltage1 = rawValue1 * (5.0 / 1023.0);  // Convert ADC value to voltage
+    double current1 = (voltage1 - 2.5) / 0.185;  // Convert to Amps (For ACS712-5A)
+    double sen_voltage1 = voltageSensor1.getRmsVoltage();
+    Serial.print("Current1: "); Serial.print(current1); Serial.print(" A");
+    Serial.print(" Voltage1: "); Serial.print(sen_voltage1); Serial.println(" V");
+    
+    // pw = "d1:"+String(sen_voltage1*current1);
+
+    pw = String(sen_voltage1*current1);
+    Serial1.println(pw);
+    Serial.println(pw);
+
+
+    // int rawValue2 = analogRead(CURRENT_SENSOR2);
+    // double voltage2 = rawValue2 * (5.0 / 1023.0);  // Convert ADC value to voltage
+    // double current2 = (voltage2 - 0.06 ) / 1.85;  // Convert to Amps (For ACS712-5A)
+    // double sen_voltage2 = voltageSensor2.getRmsVoltage();
+    // Serial.print("\tCurrent2: "); Serial.print(current2); Serial.print(" A");
+    // Serial.print(" Voltage2: "); Serial.print(sen_voltage2); Serial.println(" V");
+
+    // pw = "d2:"+String(sen_voltage2*current2);
+    // Serial1.println(pw);
+    // Serial.println(pw);
+  }
+
+  delay(300);
+}
