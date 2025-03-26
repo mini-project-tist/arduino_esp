@@ -1,59 +1,56 @@
-#define CURRENT_SENSOR A2  // ACS712 connected to A1
 #include <ZMPT101B.h>
 #define SENSITIVITY 500.0f
-#define relay1 31
-
 ZMPT101B voltageSensor(A3, 60.0);
+
+#include <iarduino_ACS712.h> 
+iarduino_ACS712 sensor(A4);   // ACS712 connected to A1
+
+#define relay 47
 
 unsigned long previousMillis = 0;
 const long interval = 10000;  // 5 minutes (300,000 ms)
 
-String st;
+String st, pw;
+
+int stringToDigital(String str) {
+    return (str == "HIGH") ? HIGH : LOW;
+}
 
 void setup() {
   Serial.begin(115200);    // Serial Monitor
   Serial1.begin(9600);     // Serial Communication with ESP32 (TX1/RX1)
   voltageSensor.setSensitivity(SENSITIVITY);
 
-  pinMode(relay1, OUTPUT);
-  digitalWrite(relay1, LOW);
+  float v=sensor.getZeroVAC(); 
+  sensor.setZeroVAC(v);
+
+  pinMode(relay, OUTPUT);
+  digitalWrite(relay, LOW);
 }
 
 void loop() {
   unsigned long currentMillis = millis();
 
-  if (Serial1.available()) {
+  if(Serial1.available()){
     st = Serial1.readStringUntil('\n');  
-    st.trim();  // Clean unwanted spaces
-    
-    if (st=="false") {
-      digitalWrite(relay1, LOW);
-    }else {
-      digitalWrite(relay1, HIGH);
-    }
+    st.trim();  // Clean unwanted space
+
+    digitalWrite(relay, stringToDigital(st));
   }
   
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;  // Update time
-
-    int rawValue = analogRead(CURRENT_SENSOR);
-    double voltage = rawValue * (5.0 / 1023.0);  // Convert ADC value to voltage
-    double current = (voltage - 2.5) / 1.85;  // Convert to Amps (For ACS712-5A)
-
-
-    double sen_voltage = voltageSensor.getRmsVoltage();
-
+       
+    float current = sensor.readAC(5); 
+       
+    float voltage = voltageSensor.getRmsVoltage();
     Serial.print("Current: "); Serial.print(current); Serial.print(" A");
-    Serial.print(" Voltage: "); Serial.print(sen_voltage); Serial.println(" V");
+    Serial.print(" Voltage: "); Serial.print(voltage); Serial.println(" V");
 
-    if (st=="false") {
-      Serial1.println(0);
-    }else {
-      Serial1.println(sen_voltage*current);
-    }
+    pw = String(voltage*current);
+    Serial1.println(pw);
+    Serial.print("Power: "); Serial.println(pw);
   }
 
   delay(100);
 }
-
-
