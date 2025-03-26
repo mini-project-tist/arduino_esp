@@ -11,7 +11,7 @@ const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 19800;
 
 // Initializing variables
-char timeStr[9], dateStr[11], buffer[100], loc[100];
+char timeStr[9], dateStr[11], buffer[100], loc1[100];
 struct tm timeinfo;
 int hour, minute, second, day, month, year;
 
@@ -101,22 +101,25 @@ void getTimeAndDate(){
 }
 
 void loop() {
-  String data;
+  String data, st;
   // Format time and date strings
   getTimeAndDate();
   sprintf(timeStr, "%02d:%02d:%02d", hour, minute, second);
   sprintf(dateStr, "%02d-%02d-%04d", day, month, year);
 
-  sprintf(loc, "/s2/%s_%s", timeStr, dateStr);
+  sprintf(loc1, "/s1/%s_%s", timeStr, dateStr);
 
   if (mySerial.available()) {
     data = mySerial.readStringUntil('\n');  // Read incoming data
-
     data.trim();
-    Firebase.RTDB.setString(&fbdo, F(loc), data);
+
+    Firebase.RTDB.setString(&fbdo, F(loc1), data);
   }
 
-  if (Firebase.RTDB.getString(&fbdo, "/status/s2")) {
-    mySerial.println(fbdo.to<String>());
+  if (Firebase.RTDB.getString(&fbdo, "/status/s1")) {
+    st = fbdo.to<String>();
+    mySerial.println(st);
   }
+
+  delay(200);
 }
